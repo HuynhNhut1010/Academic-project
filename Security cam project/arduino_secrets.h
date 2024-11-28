@@ -1,0 +1,3 @@
+#define SECRET_SSID "KhuSabay_2.4G"
+#define SECRET_OPTIONAL_PASS "sabaycoffee"
+#define SECRET_DEVICE_KEY "XUGRBLYJT6VB5VDH1C4B"
