@@ -14,9 +14,9 @@
 
 /*******Library GPS ***************/
 #include <TinyGPS++.h>       // for calculate the heading the distant between é Points GPS
-#include <TimeLib.h>         // for the date and time
+#include <TimeLib.h>         // for the date and timeheadingActuel
 #include <SoftwareSerial.h>  // for the communication serial withe GPS module
-    
+
 
 /*******Library compass***********/
 #include <Wire.h>                // For the protocole I2C
@@ -43,134 +43,138 @@
 /*                                                                                                           */
 /*************************************************************************************************************/
 
-String ipRas = "192.168.43.151";  
-String port = "8080"; 
+// IP address and port number of the server (likely a Raspberry Pi)
+String ipRas = "192.168.43.151";
+String port = "8080";
 
-/*********PWM Motor ************/
-#define pinMotorR 2  //
-#define pinMotorL 0
-#define pinMotorT 14
-#define pinDebug 0
-int incomingAngle;
-String speed_edit = "0";
-String speed_motorT = "0";
-/*********Constante Server**************/
-const char* ssid = "redmi note";      //"Bla bla bla";
-const char* password = "1234554321";  //"blablabla01"
+/********* PWM Motor Configuration ************/
+// GPIO pins for motor control
+#define pinMotorR 2   // Right motor control pin
+#define pinMotorL 0   // Left motor control pin
+#define pinMotorT 14  // Turn motor control pin
+#define pinDebug 0    // Debug pin for testing or diagnostics
 
-/**Variable of route*****/
-const int nbLatLng = 15;                          
-double latLng[2][nbLatLng], latLng_temp[2][nbLatLng];  
-short i = 0;                                           
-short j = 0;                                           
-String Smessage;                                     
-double Fmessage;                                       
-String token;
-String SLong;
-double FLat;
-String SDec;
-String SEnt;
-String SLat;
-String SPoint;
-int Latu = 0;
-bool Lat = false;
-bool Long = false;
-double nextLong, nextLati;
-double latHome, longHome;
+// Variables related to motor control
+int incomingAngle;          // Angle received for motor or servo control
+String speed_edit = "0";    // String repreSEndation of edited speed
+String speed_motorT = "0";  // String repreSEndation of motor T's speed
 
-/**Variable of WEB*****/
+/********* Server Constants **************/
+// Wi-Fi credentials for connecting to the server
+const char* ssid = "redmi note";      // Wi-Fi network name
+const char* password = "1234554321";  // Wi-Fi password
 
-String httpPayload;
-int httpCode;
-WiFiClient clientEwen;
-HTTPClient httpEwen;
-String adresseHttp;
+/******** Variables for GPS Route Handling *****/
 
+// Route storage arrays for latitude and longitude (2D arrays)
+const int nbLatLng = 15;                               // Maximum number of latitude and longitude points
+double latLng[2][nbLatLng], latLng_temp[2][nbLatLng];  // Stores route and temporary points
 
-/******Variable of GPS*********/
-#define time_offset 75600  // define a clock offset of 10800 seconds (7 hours) ==> UTC + 7
-char Time[] = "00:00:00";
-char Date[] = "00-00-2000";
-byte last_second, Second, Minute, Hour, Day, Month;
-int Year;
-String Longitude = "106.626569";  //vi độ default 10.757347, 106.626569
-String Latitude = "10.757347";    // kinh độ default
-String alt, sat, fixage, course1;
-String speed1 = "0";
-double LongitudeDouble, LatitudeDouble;
+// Index variables for managing GPS data
+short i = 0;  // Current index for latitude
+short j = 0;  // Current index for longitude
 
-/********Variable Calculate GPS***************/
-unsigned long distanceToNextPoint;
-double courseToNextPoint;
-short courseTo180;
-short cap180;
-short cap180_setpoint;
+// Variables for parsing and handling messages
+String Smessage;                  // String message
+double Fmessage;                  // Floating-point message
+String token;                     // Authentication token or GPS-related token
+String SLong;                     // Longitude as a string
+double FLat;                      // Latitude as a floating-point number
+String SDec, SEnd, SLat, SPoint;  // Various temporary strings for data handling
+int Latu = 0;                     // Temporary latitude value
+bool Lat = false;                 // Latitude update flag
+bool Long = false;                // Longitude update flag
+double nextLong, nextLati;        // Coordinates for the next GPS point
+double latHome, longHome;         // Coordinates for home location
 
-/***********Variable Boussole**************/
-float actualBoussole = 0;
+/******** Variables for Web Communication *****/
+// Variables for HTTP requests and responses
+String httpPayload;     // Payload from the HTTP response
+int httpCode;           // HTTP response code
+WiFiClient clientEwen;  // Wi-Fi client object for communication
+HTTPClient httpEwen;    // HTTP client object for handling requests
+String adresseHttp;     // HTTP address for communication
 
-/************Variable motor**************/
-int speed_set = 0;  
-bool babord = true, tribord = true;
-bool arretMoteur = false;
+/******** Variables for GPS *****/
+// Time and date variables
+#define time_offset 75600    // Offset to match UTC+7 (7 hours difference)
+char Time[] = "00:00:00";    // Current time (hh:mm:ss)
+char Date[] = "00-00-2000";  // Current date (dd-mm-yyyy)
 
-/***********Variable Ultrasonic sensor**************/
-int distance;
+// Variables for time tracking
+byte last_second, Second, Minute, Hour, Day, Month;  // Components of time
+int Year;                                            // Current year
 
-/***********Variable General**************/
-int state = 0;
-int etatGPS = 1;
-String status= "0";
-/**************Timer********************/
-unsigned long timerDistance;  
-unsigned long timerStop;
-unsigned long timerGps;  
-unsigned long timerDebug;
-unsigned long timerPosition;  
+// Default GPS coordinates
+String Longitude = "106.626569";  // Default longitude
+String Latitude = "10.757347";    // Default latitude
 
-/********Variable Servo***************/
-int pwm_temp = 90;
-#define SERVOMIN 80   // Minimum value
-#define SERVOMAX 600  // Maximum value#define USMIN  600 // This is the rounded 'minimum' microsecond length based on the minimum pulse of 150
-#define SER0 6        //Servo Motor 0 on connector 0
-#define SER1 7        //Servo Motor 1 on connector 12
+// GPS-related temporary variables
+String alt, sat, fixage, course1;        // Altitude, satellites, fix age, course
+String speed1 = "0";                     // Speed as a string
+double LongitudeDouble, LatitudeDouble;  // GPS coordinates as doubles
+
+/******** Variables for GPS Calculations ********/
+unsigned long distanceToNextPoint;  // Distance to the next waypoint
+double courseToNextPoint;           // Bearing to the next waypoint
+short courseTo180;                  // Adjusted course for heading
+short heading180;                   // Adjusted heading
+short heading180_setpoint;          // Heading setpoint
+
+/******** Variables for Compass ********/
+float actualBoussole = 0;  // Current compass reading
+
+/******** Variables for Motor Control ********/
+int speed_set = 0;                   // Motor speed setpoint
+bool babord = true, tribord = true;  // Flags for motor control (left/right)
+bool arretMoteur = false;            // Motor stop flag
+
+/******** Variables for Ultrasonic Sensor ********/
+int distance;  // Measured distance from the ultrasonic sensor
+
+/******** General Variables ********/
+int state = 0;        // General state variable
+int etatGPS = 1;      // GPS state
+String status = "0";  // Status as a string
+
+/******** Timers ********/
+unsigned long timerDistance;  // Timer for distance measurements
+unsigned long timerStop;      // Timer for motor stop
+unsigned long timerGps;       // Timer for GPS updates
+unsigned long timerDebug;     // Timer for debug operations
+unsigned long timerPosition;  // Timer for position updates
+
+/******** Variables for Servo Motors ********/
+int pwm_temp = 90;    // Temporary PWM value for servos
+#define SERVOMIN 80   // Minimum servo PWM value
+#define SERVOMAX 600  // Maximum servo PWM value
+#define SER0 6        // Pin for Servo Motor 0
+#define SER1 7        // Pin for Servo Motor 1
+
+// Variables for servo motor control
 String round1;
 int pwm0;
 int pwm1;
-int motorA = 0;  //pin on board
-int motorB = 1;  //pin on board
-int posDegrees;
-int state_avodance = 0;
-int distance_1, distance_2, distance_3, distance_4;
-int obtacle_distance = 70;
-int rever_servo = 0;
+int motorA = 0;                                      // Pin for motor A
+int motorB = 1;                                      // Pin for motor B
+int posDegrees;                                      // Servo position in degrees
+int state_avodance = 0;                              // Obstacle avoidance state
+int distance_1, distance_2, distance_3, distance_4;  // Distance sensor readings
+int obtacle_distance = 70;                           // Obstacle detection threshold distance
+int rever_servo = 0;                                 // Servo reversal flag
 
-/******Variable PID*********/
-double originalSetpoint = 175.3;
-double setpoint = originalSetpoint;
-double movingAngleOffset = 0.1;
-double input, output;
-double Kp = 7;
-double Kd = 0;
-double Ki = 30;
+/******** Variables for PID Control ********/
+double originalSetpoint = 175.3;     // Original setpoint for PID control
+double setpoint = originalSetpoint;  // Current setpoint
+double movingAngleOffset = 0.1;      // Offset for moving angle
+double input, output;                // Input and output for PID controller
+double Kp = 7;                       // Proportional gain
+double Kd = 0;                       // Derivative gain
+double Ki = 30;                      // Integral gain
 
+// PID controller object with parameters
 PID pid(&input, &output, &setpoint, Kp, Ki, Kd, DIRECT);
 
-
-
-void printIncomingReadings() {
-  Serial.println("INCOMING READINGS");
-  Serial.print("Distace1: ");
-  Serial.println(distance_1);
-  Serial.print("Distace2: ");
-  Serial.println(distance_2);
-  Serial.print("Distace3: ");
-  Serial.println(distance_3);
-  Serial.print("Distace4: ");
-  Serial.println(distance_4);
-  Serial.print("Angle: ");
-  Serial.println(incomingAngle);
-}
 
 /*************************************************************************************************************/
 /*                                                                                                           */
@@ -183,16 +187,14 @@ TinyGPSPlus gps;                   // The TinyGPS++ object
 SoftwareSerial gpsSerial(13, 15);  // configuration gpsSerial library (RX pin, TX pin)
 
 /*************Setup Compass*********************/
-Adafruit_HMC5883_Unified mag = Adafruit_HMC5883_Unified(12345);  /
+Adafruit_HMC5883_Unified mag = Adafruit_HMC5883_Unified(12345);
+/
 
-/*************Setup sever**********************/
-ESP8266WebServer server(80); 
+  /*************Setup sever**********************/
+  ESP8266WebServer server(80);
 
 
 /************Setup Wifi**************************/
-// IPAddress local_IP(192, 168, 233, 70);  //USV IP cổng lan
-// IPAddress gateway(192, 168, 233, 56);   // router
-// IPAddress subnet(255, 255, 255, 0); 
 WiFiClient client;
 HTTPClient http;
 
@@ -211,7 +213,7 @@ int val;
 String success;
 typedef struct struct_message {
   // int id;
-  // int cap180_sent;
+  // int heading180_SEnd;
   int angle;
   int distance1;
   int distance2;
@@ -222,29 +224,9 @@ int BOARD_ID = 1;
 struct_message myData;
 struct_message incomingReadings;
 
-// Create a struct_message to hold incoming sensor readings
-void OnDataSent(uint8_t* mac_addr, uint8_t sendStatus) {
-  Serial.print("Last Packet Send Status: ");
-  if (sendStatus == 0) {
-    Serial.println("Delivery success");
-  } else {
-    Serial.println("Delivery fail");
-  }
-}
-void OnDataRecv(uint8_t* mac_addr, uint8_t* incomingData, uint8_t len) {
-  // Copies the sender mac address to a string
-  char macStr[18];
-  snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
-           mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
-  memcpy(&incomingReadings, incomingData, sizeof(incomingReadings));
-  distance_1 = incomingReadings.distance1;
-  distance_2 = incomingReadings.distance2;
-  distance_3 = incomingReadings.distance3;
-  distance_4 = incomingReadings.distance4;
-  incomingAngle = incomingReadings.angle;
-}
-
 int timerPosition1 = 0;
+
+
 void setup() {
   Serial.begin(115200);
   pid.SetMode(AUTOMATIC);
@@ -270,6 +252,7 @@ void setup() {
   } else {
     Serial.println("KO");
   }
+
   pcf8574.pinMode(P0, OUTPUT);
   pcf8574.pinMode(P1, OUTPUT);
   pcf8574.pinMode(P2, OUTPUT);
@@ -309,7 +292,7 @@ void setup() {
 
   // Once ESPNow is successfully Init, we will register for Send CB to
   // get the status of Trasnmitted packet
-  esp_now_register_send_cb(OnDataSent);
+  esp_now_register_send_cb(OnDataSEnd);
 
   // Register peer
   //esp_now_add_peer(broadcastAddress, ESP_NOW_ROLE_CONTROLLER, 1, NULL, 0);
@@ -323,193 +306,201 @@ void setup() {
 
 void loop() {
 
-  if (timerPosition + 5000 < millis()) {
-    timerPosition = millis();  //adresseHttp = "http://" + ipRas + ":" + port + "/api/esp/post-coor?lat="+ lat + "&lng=" +lng;
-    adresseHttp = "http://" + ipRas + ":" + port + "/api/esp/post-coor?lat=" + Latitude + "&lng=" + Longitude + "&distance_1=" + distance_1 + "&distance_2=" + distance_2 + "&distance_3=" + distance_3 + "&distance_4=" + distance_4 + "&cap180=" + cap180 + "&distance=" + distanceToNextPoint + "&speed=" + speed_set + "&j=" + j + "&speed1=" + speed1 ;
-    Serial.println(adresseHttp);
-    http.begin(client, adresseHttp);
-    httpCode = http.POST("");
+  // Periodically update the GPS position data and send it to the server
+  if (timerPosition + 5000 < millis()) {  // Every 5000 ms (5 seconds)
+    timerPosition = millis();             // Update the timer
 
-    if (httpCode > 0) {
-      httpPayload = http.getString();  //String  (LAT_Point1*LONG_Point1/LAT_Point2*LONG_P2/LAT_P3*LONG...) ex :48.409897*-4.487719/48.408658, -4.486261
+    // Construct the HTTP request URL with GPS and sensor data
+    adresseHttp = "http://" + ipRas + ":" + port + "/api/esp/post-coor?lat=" + Latitude + "&lng=" + Longitude + "&distance_1=" + distance_1 + "&distance_2=" + distance_2 + "&distance_3=" + distance_3 + "&distance_4=" + distance_4 + "&heading180=" + heading180 + "&distance=" + distanceToNextPoint + "&speed=" + speed_set + "&j=" + j + "&speed1=" + speed1;
+
+    Serial.println(adresseHttp);  // Print the HTTP request URL for debugging
+
+    http.begin(client, adresseHttp);  // Initiate HTTP connection
+    httpCode = http.POST("");         // Send the HTTP POST request
+
+    if (httpCode > 0) {                // If the server responds successfully
+      httpPayload = http.getString();  // Get the response payload
       Serial.print("httpPayload: ");
       Serial.println(httpPayload);
-      status=getValue(httpPayload,'/',0);
-      round1=getValue(httpPayload,'/',1);
-      speed_edit=getValue(httpPayload,'/',2);
-      speed_motorT=getValue(httpPayload,'/',3);
+
+      // Extract data from the response and update variables
+      status = getValue(httpPayload, '/', 0);        // Get status
+      round1 = getValue(httpPayload, '/', 1);        // Get round information
+      speed_edit = getValue(httpPayload, '/', 2);    // Get speed edit value
+      speed_motorT = getValue(httpPayload, '/', 3);  // Get motor T speed
+
+      // Debug prints for extracted data
       Serial.print("status: ");
       Serial.println(status);
-      Serial.print("Round: : ");
+      Serial.print("Round: ");
       Serial.println(round1);
-      Serial.print("Speed edit: : ");
+      Serial.print("Speed edit: ");
       Serial.println(speed_edit);
-      Serial.print("Speed set: : ");
+      Serial.print("Speed set: ");
       Serial.println(speed_set);
-      Serial.print("Speed set motor T: : ");
+      Serial.print("Speed set motor T: ");
       Serial.println(speed_motorT);
-      if (status == "0") {
-        state = 6;
-        analogWrite(pinMotorL, 70);
+
+      if (status == "0") {           // If the status indicates "stop"
+        state = 6;                   // Set state to "return home"
+        analogWrite(pinMotorL, 70);  // Adjust motor speed
         analogWrite(pinMotorR, 10);
-        analogWrite(pinMotorT, 10);  
+        analogWrite(pinMotorT, 10);
         Serial.println("Stop - Comeback home");
       } else {
-        if(state==6){
-          state=0;                 
-        }
-        else{
-          state = state; 
-        }
-        
+        state = (state == 6) ? 0 : state;  // Reset state if previously stopped
         Serial.print("Keep going at state ");
         Serial.println(state);
-        
       }
     }
-    http.end();
-    printIncomingReadings();
-    
+    http.end();               // End the HTTP connection
+    printIncomingReadings();  // Function to display sensor readings (presumed)
   }
 
-
+  // Handle different operational states using a switch-case structure
   switch (state) {
-    case 0:  //recieve data from database
-      if (timerStop + 2000 < millis()) {
+    case 0:                               // Receive data from the database
+      if (timerStop + 2000 < millis()) {  // Every 2000 ms (2 seconds)
         timerStop = millis();
-        adresseHttp = "http://" + ipRas + ":" + port + "/api/esp/get-all-coor?id=CO";  // http://192.168.0.2/src/gps/get_gps.php?cordvit=2.293399*48.858860*0*1
+        adresseHttp = "http://" + ipRas + ":" + port + "/api/esp/get-all-coor?id=CO";  // API call to get GPS coordinates
         Serial.println(adresseHttp);
         http.begin(client, adresseHttp);
-        httpCode = http.GET();
-        if (httpCode > 0) {
-          httpPayload = http.getString();  //String  (LAT_Point1*LONG_Point1/LAT_Point2*LONG_P2/LAT_P3*LONG...) ex :48.409897*-4.487719/48.408658, -4.486261
+        httpCode = http.GET();             // Send HTTP GET request
+        if (httpCode > 0) {                // If the server responds successfully
+          httpPayload = http.getString();  // Get the response payload
           Serial.println(httpPayload);
+
+          // Parse the GPS data from the response
           for (int i = 0; i <= 14; i++) {
-            SPoint = getValue(httpPayload, '/', i);  //get cordonate GPS points without char '/' (ex: 48.409897*-4.487719 when i = 0, then 48.408658, -4.486261 when i = 1)
-            //converter SPoint in float with 7 decimal
+            SPoint = getValue(httpPayload, '/', i);  // Extract each GPS point
             for (int k = 0; k <= 1; k++) {
-              SLat = getValue(SPoint, '*', k);
-              SEnt = getValue(SLat, '.', 0);
+              SLat = getValue(SPoint, '*', k);  // Split latitude and longitude
+              SEnd = getValue(SLat, '.', 0);
               SDec = getValue(SLat, '.', 1);
-              SLat = SEnt;
-              
-              SLat = SLat + SDec;
-              
+              SLat = SEnd + SDec;  // Combine integer and decimal parts
               FLat = SLat.toDouble();
-              for (int ha=0; ha < SDec.length(); ha++){
-                FLat = FLat / 10;    
+              for (int ha = 0; ha < SDec.length(); ha++) {
+                FLat /= 10;  // Convert to double
               }
-              latLng[k][i] = FLat;
-              delay(20);
+              latLng[k][i] = FLat;  // Store in the route array
+              delay(20);            // Delay for stability
             }
           }
-          displayArray();
-          http.end();
-          j=0;
-          state = 1;
+          displayArray();  // Display the GPS array (presumed function)
+          http.end();      // End HTTP connection
+          j = 0;           // Reset index
+          state = 1;       // Transition to state 1
         }
       }
       break;
 
-    case 1:
-      if (timerDistance + 700 < millis())  //every  0,5 secondes for the heading correction
-      {
+    case 1:                                  // Perform navigation tasks
+      if (timerDistance + 700 < millis()) {  // Every 700 ms
         timerDistance = millis();
-        nextLati = latLng[0][j];
-        nextLong = latLng[1][j];
-        //Serial.print("J: ");
-        //Serial.println(j);
+        nextLati = latLng[0][j];  // Get the next latitude
+        nextLong = latLng[1][j];  // Get the next longitude
+
         Serial.print("State: ");
         Serial.println(state);
-        
-        calculOrderheadinging(magSensor());
-        calculSpeed();
+
+        calculOrderheadinging(magSensor());  // Update heading based on magnetic sensor
+        calculSpeed();                       // Adjust speed
         Serial.print("distance1: ");
         Serial.println(distance_1);
-        Serial.print("distance2: ");
-        Serial.println(distance_2);
-        Serial.print("distance3: ");
-        Serial.println(distance_3);
-        Serial.print("distance4: ");
-        Serial.println(distance_4);
-        if (distance_1 < obtacle_distance || distance_2 < obtacle_distance || distance_3 < obtacle_distance || distance_4 < obtacle_distance)  // end of the route 
-        {
-          Serial.println("");
-          Serial.println("---------------------------------------------OBTACLE--------------------------- ");
-          Serial.println("");
-          state = 5;  // state of advoing abstacle
-          analogWrite(pinMotorR, 10);
+
+        // Check for obstacles
+        if (distance_1 < obtacle_distance || distance_2 < obtacle_distance || distance_3 < obtacle_distance || distance_4 < obtacle_distance) {
+          Serial.println("Obstacle detected");
+          state = 5;                   // Change state to obstacle avoidance
+          analogWrite(pinMotorR, 10);  // Adjust motor speeds
           analogWrite(pinMotorL, 70);
           delay(1000);
-          Serial.println("State: ");
-          Serial.println(state);
-        }
-       else {
-        if (nextLati == 0 || nextLong == 0) {
-          if (round1.toInt() == 1) {
-            state = 4;
-          } else {
-            state = 0;
-            adresseHttp = "http://" + ipRas + ":" + port + "/api/esp/delete-coor";  // http://192.168.0.2/src/gps/get_gps.php?cordvit=2.293399*48.858860*0*1
+        } else if (nextLati == 0 || nextLong == 0) {  // Check if route is complete
+          state = (round1.toInt() == 1) ? 4 : 0;      // Transition state
+          if (state == 0) {
+            adresseHttp = "http://" + ipRas + ":" + port + "/api/esp/delete-coor";  // API to delete route
             http.begin(client, adresseHttp);
-            httpCode = http.POST("");
+            httpCode = http.POST("");  // Send POST request
             Serial.println(httpCode);
-            j = 0;
+            j = 0;  // Reset index
             http.end();
           }
-        }
-          else if (distanceToNextPoint <= 3) {
-            Serial.println("Reach the point");
-            Serial.println("State: ");
-            Serial.println(state);
-            j = j + 1;
-          }
+        } else if (distanceToNextPoint <= 3) {  // Check if the next point is reached
+          Serial.println("Reach the point");
+          j++;  // Move to the next point
         }
       }
       break;
 
-    case 4:  // comback
-      double latLng_temp[2][14];
+    case 4:                               // Return to home
+      double latLng_temp[2][14] = { 0 };  // Temporary array for route reversal
+      // Reverse the route
       for (int h = 0; h <= 1; h++) {
-        for (int k = 0; k <= 13; k++) {
-          latLng_temp[h][k] = 0;
-        }
-      }
-      Serial.println("----------------latLng-----------------------------------------");
-      for (int i = 0; i < 14; i++) {
-        Serial.print((double)latLng[0][i], 8);
-        Serial.print("\t");
-        Serial.println((double)latLng[1][i], 8);
-      }
-      for (int h = 0; h <= 1; h++) {
-        int kk = 0;
-        for (int k = 13; k >= 0; k--) {
+        for (int k = 13, kk = 0; k >= 0; k--) {
           if (latLng[h][k] != 0) {
-            latLng_temp[h][kk] = latLng[h][k];
-            kk = kk + 1;
+            latLng_temp[h][kk++] = latLng[h][k];
           }
         }
       }
-      Serial.println("------------------------latLng_temp----------------------------------");
-      for (int i = 0; i < 14; i++) {
-        Serial.print(latLng_temp[0][i], 8);
-        Serial.print("\t");
-        Serial.println(latLng_temp[1][i], 8);
-      }
-      Serial.println("--------------------------------------------------------------");
+      // Copy reversed route back to latLng
       for (int k = 0; k <= 14; k++) {
         for (int h = 0; h <= 1; h++) {
           latLng[h][k] = latLng_temp[h][k];
         }
       }
-      state = 1;
-      j = 0;
+      state = 1;  // Transition to navigation state
+      j = 0;      // Reset index
       break;
-    case 5:
-      obstacle_avodance();
+
+    case 5:                 // Obstacle avoidance
+      obstacle_avodance();  // Call obstacle avoidance function (presumed)
       break;
   }
+
+  // Process incoming GPS data
   while (gpsSerial.available() > 0) {
-    encodeGPS();
+    encodeGPS();  // Parse GPS data (presumed function)
   }
+}
+// Function to handle the status of the last sent packet
+void OnDataSEnd(uint8_t* mac_addr, uint8_t sendStatus) {
+  Serial.print("Last Packet Send Status: ");
+  if (sendStatus == 0) {
+    Serial.println("Delivery success");  // Packet successfully delivered
+  } else {
+    Serial.println("Delivery fail");  // Packet delivery failed
+  }
+}
+
+// Function to handle incoming data via ESP-NOW
+void OnDataRecv(uint8_t* mac_addr, uint8_t* incomingData, uint8_t len) {
+  // Copies the sender's MAC address into a string for debugging
+  char macStr[18];
+  snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
+           mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+
+  // Copies the incoming data into the `incomingReadings` structure
+  memcpy(&incomingReadings, incomingData, sizeof(incomingReadings));
+
+  // Extract data from the structure and assign to respective variables
+  distance_1 = incomingReadings.distance1;  // Sensor reading from distance sensor 1
+  distance_2 = incomingReadings.distance2;  // Sensor reading from distance sensor 2
+  distance_3 = incomingReadings.distance3;  // Sensor reading from distance sensor 3
+  distance_4 = incomingReadings.distance4;  // Sensor reading from distance sensor 4
+  incomingAngle = incomingReadings.angle;   // Angle data from the sender
+}
+
+// Function to print the incoming sensor readings for debugging
+void printIncomingReadings() {
+  Serial.println("INCOMING READINGS");  // Header for debug output
+  Serial.print("Distance1: ");
+  Serial.println(distance_1);  // Print sensor 1 reading
+  Serial.print("Distance2: ");
+  Serial.println(distance_2);  // Print sensor 2 reading
+  Serial.print("Distance3: ");
+  Serial.println(distance_3);  // Print sensor 3 reading
+  Serial.print("Distance4: ");
+  Serial.println(distance_4);  // Print sensor 4 reading
+  Serial.print("Angle: ");
+  Serial.println(incomingAngle);  // Print angle reading
 }

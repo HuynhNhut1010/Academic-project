@@ -1,74 +1,56 @@
 /*
-   Gere la vitesse en fonction de la distance restante avec le prochain point
-//Quản lý tốc độ theo khoảng cách còn lại với điểm tiếp theo
-   Control les moteurs
-*/
+ * Adjusts motor speed based on the remaining distance to the next waypoint.
+ */
 void calculSpeed() {
-  if (distanceToNextPoint >= 15)  //Plus de 3km
-  {
-    if (speed_edit.toInt() == 0) {
-      speed_set = 15;
+  // Determine speed based on the distance to the next point
+  if (distanceToNextPoint >= 15) {  // If far from the next point
+    if (speed_edit.toInt() == 0) {  // If no user-defined speed is set
+      speed_set = 15;               // Default speed
     } else {
-      speed_set = speed_edit.toInt();
+      speed_set = speed_edit.toInt();  // Use the user-defined speed
     }
-  } else if (distanceToNextPoint >= 5 && distanceToNextPoint < 15)  // Entre 101m et 3km
-  {
+  } else if (distanceToNextPoint >= 5 && distanceToNextPoint < 15) {  // If moderately close
     if (speed_edit.toInt() == 0) {
-      speed_set = 15;
+      speed_set = 15;  // Default speed
     } else {
-      speed_set = speed_edit.toInt()-1;
-    }                                  //Vitesse Max
-  } else if (distanceToNextPoint < 5)  //Entre 5m et 20m
-  {
+      speed_set = speed_edit.toInt() - 1;  // Slightly decrease user-defined speed
+    }
+  } else if (distanceToNextPoint < 5) {  // If close to the waypoint
     if (speed_edit.toInt() == 0) {
-      speed_set = 13;
+      speed_set = 13;  // Reduced default speed
     } else {
-      speed_set = speed_edit.toInt()-3;
-    }                                   // Vitesse Lente
-  } else if (distanceToNextPoint <= 1)  //Moins de 5m
-  {
-    speed_set = 10;  // STOP
+      speed_set = speed_edit.toInt() - 3;  // Further decrease user-defined speed
+    }
+  } else if (distanceToNextPoint <= 1) {  // If very close or at the waypoint
+    speed_set = 10;                       // Minimal speed (can imply STOP)
   }
 
-  //controlMotor();
-  //keep_balance();
-  analogWrite(pinMotorR, speed_set + 1);
-  analogWrite(pinMotorL, speed_set + 60);
+  // Apply calculated speed to motors
+  analogWrite(pinMotorR, speed_set + 1);   // Right motor speed
+  analogWrite(pinMotorL, speed_set + 60);  // Left motor speed with offset
 }
 
+/*
+ * Controls the motors to manage individual motor speeds and directions.
+ */
 void controlMotor() {
+  // Manage the right motor based on the "tribord" flag
   if (tribord) {
-    analogWrite(pinMotorR, speed_set);
-    Serial.println("Right motor : " + String(speed_set));
+    analogWrite(pinMotorR, speed_set);                     // Apply calculated speed to right motor
+    Serial.println("Right motor : " + String(speed_set));  // Log speed
   } else {
-    analogWrite(pinMotorR, 10);
-    Serial.println("Right motor : 10");
+    analogWrite(pinMotorR, 10);          // Set minimal speed for the right motor
+    Serial.println("Right motor : 10");  // Log default fallback speed
   }
-  delay(10);
+  delay(10);  // Short delay for stability
+
+  // Manage the left motor based on the "babord" flag
   if (babord) {
-    analogWrite(pinMotorL, speed_set);
-    Serial.println("Left motor : " + String(speed_set));
+    analogWrite(pinMotorL, speed_set);                    // Apply calculated speed to left motor
+    Serial.println("Left motor : " + String(speed_set));  // Log speed
   } else {
-    analogWrite(pinMotorL, 70);  //Arret du moteur
-    Serial.println("Left motor : 70");
+    analogWrite(pinMotorL, 70);         // Set minimal speed for the left motor
+    Serial.println("Left motor : 70");  // Log default fallback speed
   }
-  delay(10);
+  delay(10);  // Short delay for stability
 }
-// void keep_balance() {
-//   setpoint = 180;
-//   pid.Compute();
-//   if (output >= 0) {
-//     analogWrite(pinMotorT, 12);
-//     delay(500);
-//     pcf_MUI.digitalWrite(P0, 1);  // reverse
-//     pcf_MUI.digitalWrite(P1, 1);
-//     analogWrite(pinMotorT, output);
-//   } else if (output < 0) {
-//     int val = output * (-1);
-//     analogWrite(pinMotorT, 10);
-//     delay(500);
-//     pcf_MUI.digitalWrite(P0, 0);  // reverse
-//     pcf_MUI.digitalWrite(P1, 0);
-//     analogWrite(pinMotorT, val);
-//   }
-// }
