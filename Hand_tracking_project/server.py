@@ -1,70 +1,71 @@
 import socket
 import threading
-import time
+
 
 HEADER = 1024
 PORT = 5050
+
 SERVER = socket.gethostbyname(socket.gethostname())
+#SERVER = '192.168.1.2'
 ADDR = (SERVER, PORT)
-FORMAT = "utf-8"
-DISCONNECT_MESSAGE = "!DISCONNECT"
+FORMAT = 'ascii'
+DISCONN_MSG = "DISCONNECT"
+
+print(ADDR)
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind(ADDR)
 
-
 clients = []
 nicknames = []
-
-
-def handle_client(client):
-    connected = True
-    while connected:
-        try:
-            message = client.recv(HEADER)
-            broadcast(message)
-        except:
-            index = clients.index(client)
-            clients.remove(client)
-            client.close()
-            nickname = nicknames[index]
-            nicknames.remove(nickname)
-            broadcast(f'{nickname} left the chat'.encode(FORMAT))
-            break
-        # msg_length = conn.recv(HEADER).decode(FORMAT)
-        # if msg_length:
-        #     msg_length = int(msg_length)
-        #     msg = conn.recv(msg_length).decode(FORMAT)
-        #
-        #     if msg == DISCONNECT_MESSAGE:
-        #         connected = False
-        #
-        #     print(f"[{addr}] {msg}")
-        #     conn.send("message received".encode(FORMAT))
-
-    # conn.close()
-
-
-
 
 def broadcast(message):
     for client in clients:
         client.send(message)
+        print(f"Sent message to sender: {message.decode(FORMAT)}" )
+        
+    
+def send(conn, msg):
+    message = str(msg).encode(FORMAT)
+    conn.send(message)
 
+def handle_client(conn, addr):
+    connect = True
+    while connect:
+        try:
+            msg = conn.recv(HEADER)
+            print(f'{msg.decode(FORMAT)}')
+            broadcast(msg)
+        except:
+            index = clients.index(conn)
+            print(f"[index]: {index} ")
+            clients.remove(conn)
+            nickname = nicknames[index]
+            broadcast(f"{nickname} out chat")
+            nicknames.remove(nickname)
+            print(f"{nickname} was out chat")
+            conn.close()
 
 def start():
     server.listen()
-    print(f"[LISTENING] Server is listing on {SERVER} ")
+    print(f"[LISTENNING] listen on {ADDR}")
     while True:
-        client, addr = server.accept()
-        print(f"Welcome to chat {str(addr)}")
-        client.send('NICK'.encode(FORMAT))
-        nickname = client.recv(HEADER).decode(FORMAT)
-        nicknames.append(nickname)
-        clients.append(client)
-        print(f"Nickname of client is {nickname}")
-        thread = threading.Thread(target=handle_client, args=(client, ))
-        thread.start()
+        conn, addr = server.accept()
+        #send(conn, "Welcome to box chat")
+        conn.send('NICK'.encode(FORMAT))
+        print("Sent NICK")
+        nickname = conn.recv(HEADER).decode(FORMAT)
+        print(f"{nickname} entered chat")
 
-print("[STARTING] server is starting ....")
+        nicknames.append(nickname)
+        clients.append(conn)
+        
+        broadcast(f"{nickname} joined chat".encode(FORMAT))
+        thread = threading.Thread(target=handle_client, args=(conn, addr))
+        thread.start()
+        print(f"[ACTIVE THREAD] {threading.active_count() - 1}")
+        for client in clients:
+            print(f"[Client] {client}")
+
+print("[STARTING] server is started")
 start()
